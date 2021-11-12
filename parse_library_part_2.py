@@ -50,7 +50,7 @@ def download_image(basic_url, parsed_book, relative_image_url):
         file.write(response.content)
 
 
-for book in range(0, 11):
+for book in range(0, 2):
     books_folder = 'books'
     images_folder = 'images'
     url = f'https://tululu.org/l55/{book}/'
@@ -71,7 +71,7 @@ for book in range(0, 11):
             relative_image_url = \
                 soup.find(class_='bookimage').find('a').find('img')['src']
 
-            parse_image_url = urlsplit(url)
+            parse_image_url = urlsplit(relative_image_url)
             image_id = os.path.split(parse_image_url.path)[-1]
             id, _ = os.path.splitext(image_id)
 
@@ -81,7 +81,8 @@ for book in range(0, 11):
             check_for_redirect(download_url_response)
             response.raise_for_status()
 
-            parsed_book = parse_book_page(soup, parse_image_url)
+            parsed_book = parse_book_page(soup, image_id)
+
             download_txt(parsed_book, download_url_response)
             download_image(basic_url, parsed_book, relative_image_url)
         except:
