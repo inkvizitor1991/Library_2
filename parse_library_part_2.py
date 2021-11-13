@@ -1,7 +1,8 @@
-import os
+import argparse
 import json
-import pathlib
 import logging
+import os
+import pathlib
 from urllib.parse import unquote, urljoin, urlsplit
 
 import requests
@@ -88,29 +89,48 @@ def download_books(soup, basic_url, books_folder, images_folder):
         download_description_book(parsed_book)
 
 
-for book in range(0, 2):
+def get_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--start_page', nargs="?", type=int, default=0)
+    parser.add_argument('--end_page', nargs="?", type=int, default=0)
+    args = parser.parse_args()
+    start_page = args.start_page
+    end_page = args.end_page
+
+    if end_page == 0:
+        end_page = start_page + 1
+    else:
+        end_page += 1
+    return start_page, end_page
+
+
+if __name__ == '__main__':
     books_folder = 'books'
     images_folder = 'images'
-    url = f'https://tululu.org/l55/{book}/'
-    response = requests.get(url)
-    response.raise_for_status()
 
-    soup = BeautifulSoup(response.text, 'lxml')
-    selector = '.bookimage a'
-    books = soup.select(selector)
+    start_page, end_page = get_parser()
 
-    for book in books:
-        try:
-            id = book['href']
-            basic_url = urljoin(url, id)
-            response = requests.get(basic_url)
-            check_for_redirect(response)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'lxml')
+    for book in range(start_page, end_page):
+        url = f'https://tululu.org/l55/{book}/'
+        response = requests.get(url)
+        response.raise_for_status()
 
-            download_books(
-                soup, basic_url,
-                books_folder, images_folder
-            )
-        except:
-            logging.basicConfig(level=logging.DEBUG)
+        soup = BeautifulSoup(response.text, 'lxml')
+        selector = '.bookimage a'
+        books = soup.select(selector)
+
+        for book in books:
+            try:
+                id = book['href']
+                basic_url = urljoin(url, id)
+                response = requests.get(basic_url)
+                check_for_redirect(response)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, 'lxml')
+
+                download_books(
+                    soup, basic_url,
+                    books_folder, images_folder
+                )
+            except:
+                logging.basicConfig(level=logging.DEBUG)
