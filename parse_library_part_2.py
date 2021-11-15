@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import pathlib
+from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
 
 import requests
@@ -14,7 +15,7 @@ def check_for_redirect(response):
         raise requests.HTTPError
 
 
-def parse_book_page(soup, books_folder, images_folder, filename):
+def parse_book_page(soup, books_path, images_path, filename):
     comments_selector = '.texts .black'
     comments = soup.select(comments_selector)
 
@@ -25,17 +26,17 @@ def parse_book_page(soup, books_folder, images_folder, filename):
     title_with_author = soup.select_one(title_with_author_selector)
     title, author = title_with_author.text.split('::')
 
-    pathlib.Path(books_folder).mkdir(parents=True, exist_ok=True)
-    pathlib.Path(images_folder).mkdir(parents=True, exist_ok=True)
-    filepath_images = os.path.join(images_folder, f'{filename}')
-    filepath_books = os.path.join(books_folder, f'{title.strip()}.txt')
+    pathlib.Path(books_path).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(images_path).mkdir(parents=True, exist_ok=True)
+    img_scr = os.path.join(images_path, f'{filename}')
+    book_path = os.path.join(books_path, f'{title.strip()}.txt')
 
     parsed_book = {
         'title': title.strip(),
         'autor': author.strip(),
-        'img_scr': filepath_images,
+        'img_scr': img_scr,
         'genres': [tag.text for tag in links_genre],
-        'book_path': filepath_books,
+        'book_path': book_path,
         'comments': [tag.text for tag in comments],
     }
     return parsed_book
@@ -64,12 +65,13 @@ def download_image(basic_url, parsed_book, relative_image_url):
         file.write(response.content)
 
 
-def download_description_book(parsed_book):
-    with open('parsed_book.json', 'w', encoding='utf8') as description_book:
+def download_description_book(parsed_book, json_path):
+    with open(json_path, 'w', encoding='utf8') as description_book:
         json.dump(parsed_book, description_book, ensure_ascii=False)
 
 
-def download_books(soup, basic_url, books_folder, images_folder):
+def download_books(soup, basic_url, books_path, images_path, skip_imgs,
+                   skip_txt, json_path):
     relative_images_urls_selector = '.bookimage a img'
     relative_images_urls = soup.select(relative_images_urls_selector)
     for relative_image_url in relative_images_urls:
@@ -80,37 +82,70 @@ def download_books(soup, basic_url, books_folder, images_folder):
         filename = unquote(image_id)
 
         parsed_book = parse_book_page(
-            soup, books_folder,
-            images_folder, filename
+            soup, books_path,
+            images_path, filename
         )
-
-        download_txt(parsed_book, image_id)
-        download_image(basic_url, parsed_book, relative_image_url)
-        download_description_book(parsed_book)
+        if skip_txt:
+            download_txt(parsed_book, image_id)
+        if skip_imgs:
+            download_image(basic_url, parsed_book, relative_image_url)
+        download_description_book(parsed_book, json_path)
 
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--start_page', nargs="?", type=int, default=0)
-    parser.add_argument('--end_page', nargs="?", type=int, default=0)
-    args = parser.parse_args()
-    start_page = args.start_page
-    end_page = args.end_page
-
-    if end_page == 0:
-        end_page = start_page + 1
-    else:
-        end_page += 1
-    return start_page, end_page
+    parser.add_argument(
+        '--start_page', nargs='?',
+        type=int, default=0,
+        help='С какой страницы скачать'
+    )
+    parser.add_argument(
+        '--end_page', nargs='?',
+        type=int, default=0,
+        help='С какой по какую страницы скачать'
+    )
+    parser.add_argument(
+        '--dest_folder',
+        help='Путь к каталогу с результатами парсинга: картинкам, книгам, JSON.',
+        default=os.path.abspath(os.curdir)
+    )
+    parser.add_argument(
+        '--skip_txt',
+        action='store_false',
+        help='Не скачивать книги.'
+    )
+    parser.add_argument(
+        '--skip_imgs',
+        action='store_false',
+        help='Не скачивать картинки.'
+    )
+    parser.add_argument(
+        '--json_path',
+        help='Указать свой путь к *.json файлу с результатами.',
+        default='parsed_book.json'
+    )
+    return parser
 
 
 if __name__ == '__main__':
     books_folder = 'books'
     images_folder = 'images'
 
-    start_page, end_page = get_parser()
+    parser = get_parser()
+    args = parser.parse_args()
+    skip_txt = args.skip_txt
+    skip_imgs = args.skip_imgs
 
-    for book in range(start_page, end_page):
+    if args.end_page == 0:
+        end_page = args.start_page + 1
+    else:
+        args.end_page += 1
+
+    books_path = Path(args.dest_folder, books_folder)
+    images_path = Path(args.dest_folder, images_folder)
+    json_path = Path(args.dest_folder, args.json_path)
+
+    for book in range(args.start_page, args.end_page):
         url = f'https://tululu.org/l55/{book}/'
         response = requests.get(url)
         response.raise_for_status()
@@ -130,7 +165,9 @@ if __name__ == '__main__':
 
                 download_books(
                     soup, basic_url,
-                    books_folder, images_folder
+                    books_path, images_path,
+                    skip_imgs, skip_txt,
+                    json_path
                 )
             except:
                 logging.basicConfig(level=logging.DEBUG)
