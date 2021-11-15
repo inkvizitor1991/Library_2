@@ -34,8 +34,14 @@ $ pip install urllib3 requests BeautifulSoup4 lxml
 * --start_page – какую страницу скачать.
 * --start_page --end_page – по какую страницу скачать.
 
+Примеры запуска скрипта:
 ```
-$ python library.py 20 30
+$ python library.py --start_page 1 --end_page 2
+$ python library.py --start_page 1
+$ python library.py --start_page 1 --dest_folder
+$ python library.py --start_page 1 --skip_txt
+$ python library.py --start_page 1 --skip_imgs
+$ python library.py --start_page 1 --json_path parsed_book.json
 ```
 
 ### Цель проекта
