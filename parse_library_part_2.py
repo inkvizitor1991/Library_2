@@ -135,17 +135,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
     skip_txt = args.skip_txt
     skip_imgs = args.skip_imgs
+    start_page = args.start_page
+    end_page = args.end_page
+    dest_folder = args.dest_folder
 
-    if args.end_page == 0:
-        end_page = args.start_page + 1
+    if end_page == 0:
+        end_page = start_page + 1
     else:
-        args.end_page += 1
+        end_page += 1
 
-    books_path = Path(args.dest_folder, books_folder)
-    images_path = Path(args.dest_folder, images_folder)
-    json_path = Path(args.dest_folder, args.json_path)
+    books_path = Path(dest_folder, books_folder)
+    images_path = Path(dest_folder, images_folder)
+    json_path = Path(dest_folder, args.json_path)
 
-    for book in range(args.start_page, args.end_page):
+    for book in range(start_page, end_page):
         url = f'https://tululu.org/l55/{book}/'
         response = requests.get(url)
         response.raise_for_status()
