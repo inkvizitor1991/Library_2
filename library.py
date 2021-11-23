@@ -15,6 +15,17 @@ def check_for_redirect(response):
         raise requests.HTTPError
 
 
+def get_last_page():
+    url = 'https://tululu.org/l55/'
+    response = requests.get(url)
+    check_for_redirect(response)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, 'lxml')
+    selector = '.npage:last-child'
+    last_page = int(soup.select_one(selector).text)
+    return last_page
+
+
 def parse_book_page(soup, books_path, images_path, filename, book_id):
     comments_selector = '.texts .black'
     comments = soup.select(comments_selector)
@@ -77,7 +88,7 @@ def download_book(soup, book_url, books_path, images_path, args, json_path):
     filename = unquote(image_id)
     book_id, _ = os.path.splitext(image_id)
 
-    #book_description = []
+    # book_description = []
     parsed_book = parse_book_page(
         soup, books_path,
         images_path, filename,
@@ -88,7 +99,6 @@ def download_book(soup, book_url, books_path, images_path, args, json_path):
     if not args.skip_imgs:
         download_image(book_url, parsed_book, relative_image_url)
     return parsed_book
-
 
 
 def get_parser():
@@ -133,18 +143,15 @@ if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args()
 
-    start_page = args.start_page
-    end_page = args.end_page
-
-    if end_page == 0:
-        end_page = start_page + 1
-    else:
-        end_page += 1
-
     books_path = Path(args.dest_folder, books_folder)
     images_path = Path(args.dest_folder, images_folder)
     json_path = Path(args.dest_folder, args.json_path)
 
+    start_page = args.start_page
+    end_page = args.end_page
+
+    if not end_page:
+        end_page = get_last_page()
     for page_number in range(start_page, end_page):
         url = f'https://tululu.org/l55/{page_number}/'
         response = requests.get(url)
