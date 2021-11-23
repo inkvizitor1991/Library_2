@@ -69,8 +69,7 @@ def download_description_book(parsed_book, json_path):
         json.dump(parsed_book, description_book, ensure_ascii=False)
 
 
-def download_book(soup, book_url, books_path, images_path, skip_imgs,
-                   skip_txt, json_path):
+def download_book(soup, book_url, books_path, images_path, args, json_path):
     relative_image_url_selector = '.bookimage a img'
     relative_image_url = soup.select_one(relative_image_url_selector)['src']
     parse_image_url = urlsplit(relative_image_url)
@@ -78,16 +77,18 @@ def download_book(soup, book_url, books_path, images_path, skip_imgs,
     filename = unquote(image_id)
     book_id, _ = os.path.splitext(image_id)
 
+    #book_description = []
     parsed_book = parse_book_page(
         soup, books_path,
         images_path, filename,
         book_id
     )
-    if not skip_txt:
+    if not args.skip_txt:
         download_txt(parsed_book, book_id)
-    if not skip_imgs:
+    if not args.skip_imgs:
         download_image(book_url, parsed_book, relative_image_url)
-    download_description_book(parsed_book, json_path)
+    return parsed_book
+
 
 
 def get_parser():
@@ -132,21 +133,17 @@ if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args()
 
-    skip_txt = args.skip_txt
-    skip_imgs = args.skip_imgs
-
     start_page = args.start_page
     end_page = args.end_page
-    dest_folder = args.dest_folder
 
     if end_page == 0:
         end_page = start_page + 1
     else:
         end_page += 1
 
-    books_path = Path(dest_folder, books_folder)
-    images_path = Path(dest_folder, images_folder)
-    json_path = Path(dest_folder, args.json_path)
+    books_path = Path(args.dest_folder, books_folder)
+    images_path = Path(args.dest_folder, images_folder)
+    json_path = Path(args.dest_folder, args.json_path)
 
     for page_number in range(start_page, end_page):
         url = f'https://tululu.org/l55/{page_number}/'
@@ -158,6 +155,7 @@ if __name__ == '__main__':
         selector = '.bookimage a'
         books = soup.select(selector)
 
+        book_description = []
         for book in books:
             try:
                 book_id = book['href']
@@ -167,11 +165,13 @@ if __name__ == '__main__':
                 response.raise_for_status()
                 soup = BeautifulSoup(response.text, 'lxml')
 
-                download_book(
+                parsed_book = download_book(
                     soup, book_url,
                     books_path, images_path,
-                    skip_imgs, skip_txt,
+                    args,
                     json_path
                 )
+                book_description.append(parsed_book)
+                download_description_book(book_description, json_path)
             except:
                 logging.basicConfig(level=logging.DEBUG)
