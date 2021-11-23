@@ -151,6 +151,7 @@ if __name__ == '__main__':
     for book in range(start_page, end_page):
         url = f'https://tululu.org/l55/{book}/'
         response = requests.get(url)
+        check_for_redirect(response)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, 'lxml')
@@ -159,8 +160,8 @@ if __name__ == '__main__':
 
         for book in books:
             try:
-                id = book['href']
-                basic_url = urljoin(url, id)
+                book_id = book['href']
+                basic_url = urljoin(url, book_id)
                 response = requests.get(basic_url)
                 check_for_redirect(response)
                 response.raise_for_status()
