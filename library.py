@@ -51,7 +51,7 @@ def download_txt(parsed_book, image_id):
     response.raise_for_status()
 
     filepath = parsed_book['book_path']
-    with open(f'{filepath}', 'w') as file:
+    with open(filepath, 'w') as file:
         file.write(download_url_response.text)
 
 
@@ -70,26 +70,22 @@ def download_description_book(parsed_book, json_path):
         json.dump(parsed_book, description_book, ensure_ascii=False)
 
 
-def download_books(soup, basic_url, books_path, images_path, skip_imgs,
+def download_book(soup, basic_url, books_path, images_path, skip_imgs,
                    skip_txt, json_path):
-    relative_images_urls_selector = '.bookimage a img'
-    relative_images_urls = soup.select(relative_images_urls_selector)
-    for relative_image_url in relative_images_urls:
-        relative_image_url = relative_image_url['src']
-
-        parse_image_url = urlsplit(relative_image_url)
-        image_id = os.path.split(parse_image_url.path)[-1]
-        filename = unquote(image_id)
-
-        parsed_book = parse_book_page(
-            soup, books_path,
-            images_path, filename
-        )
-        if skip_txt:
-            download_txt(parsed_book, image_id)
-        if skip_imgs:
-            download_image(basic_url, parsed_book, relative_image_url)
-        download_description_book(parsed_book, json_path)
+    relative_image_url_selector = '.bookimage a img'
+    relative_image_url = soup.select_one(relative_image_url_selector)['src']
+    parse_image_url = urlsplit(relative_image_url)
+    image_id = os.path.split(parse_image_url.path)[-1]
+    filename = unquote(image_id)
+    parsed_book = parse_book_page(
+        soup, books_path,
+        images_path, filename
+    )
+    if skip_txt:
+        download_txt(parsed_book, image_id)
+    if skip_imgs:
+        download_image(basic_url, parsed_book, relative_image_url)
+    download_description_book(parsed_book, json_path)
 
 
 def get_parser():
@@ -167,7 +163,7 @@ if __name__ == '__main__':
                 response.raise_for_status()
                 soup = BeautifulSoup(response.text, 'lxml')
 
-                download_books(
+                download_book(
                     soup, basic_url,
                     books_path, images_path,
                     skip_imgs, skip_txt,
