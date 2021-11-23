@@ -15,7 +15,7 @@ def check_for_redirect(response):
         raise requests.HTTPError
 
 
-def parse_book_page(soup, books_path, images_path, filename):
+def parse_book_page(soup, books_path, images_path, filename, book_id):
     comments_selector = '.texts .black'
     comments = soup.select(comments_selector)
 
@@ -28,8 +28,8 @@ def parse_book_page(soup, books_path, images_path, filename):
 
     pathlib.Path(books_path).mkdir(parents=True, exist_ok=True)
     pathlib.Path(images_path).mkdir(parents=True, exist_ok=True)
-    img_scr = os.path.join(images_path, f'{filename}')
-    book_path = os.path.join(books_path, f'{title.strip()}.txt')
+    img_scr = os.path.join(images_path, f'{book_id}_{filename}')
+    book_path = os.path.join(books_path, f'{book_id}_{title.strip()}.txt')
 
     parsed_book = {
         'title': title.strip(),
@@ -42,8 +42,7 @@ def parse_book_page(soup, books_path, images_path, filename):
     return parsed_book
 
 
-def download_txt(parsed_book, image_id):
-    book_id, _ = os.path.splitext(image_id)
+def download_txt(parsed_book, book_id):
     book_id = {'id': book_id}
     download_url = 'https://tululu.org/txt.php'
     download_url_response = requests.get(download_url, params=book_id)
@@ -55,9 +54,9 @@ def download_txt(parsed_book, image_id):
         file.write(download_url_response.text)
 
 
-def download_image(basic_url, parsed_book, relative_image_url):
+def download_image(book_url, parsed_book, relative_image_url):
     image_url = parsed_book['img_scr']
-    basic_image_url = urljoin(basic_url, relative_image_url)
+    basic_image_url = urljoin(book_url, relative_image_url)
     response = requests.get(basic_image_url)
     response.raise_for_status()
 
@@ -70,21 +69,24 @@ def download_description_book(parsed_book, json_path):
         json.dump(parsed_book, description_book, ensure_ascii=False)
 
 
-def download_book(soup, basic_url, books_path, images_path, skip_imgs,
+def download_book(soup, book_url, books_path, images_path, skip_imgs,
                    skip_txt, json_path):
     relative_image_url_selector = '.bookimage a img'
     relative_image_url = soup.select_one(relative_image_url_selector)['src']
     parse_image_url = urlsplit(relative_image_url)
     image_id = os.path.split(parse_image_url.path)[-1]
     filename = unquote(image_id)
+    book_id, _ = os.path.splitext(image_id)
+
     parsed_book = parse_book_page(
         soup, books_path,
-        images_path, filename
+        images_path, filename,
+        book_id
     )
-    if skip_txt:
-        download_txt(parsed_book, image_id)
-    if skip_imgs:
-        download_image(basic_url, parsed_book, relative_image_url)
+    if not skip_txt:
+        download_txt(parsed_book, book_id)
+    if not skip_imgs:
+        download_image(book_url, parsed_book, relative_image_url)
     download_description_book(parsed_book, json_path)
 
 
@@ -107,12 +109,12 @@ def get_parser():
     )
     parser.add_argument(
         '--skip_txt',
-        action='store_false',
+        action='store_true',
         help='Не скачивать книги.'
     )
     parser.add_argument(
         '--skip_imgs',
-        action='store_false',
+        action='store_true',
         help='Не скачивать картинки.'
     )
     parser.add_argument(
@@ -129,8 +131,10 @@ if __name__ == '__main__':
 
     parser = get_parser()
     args = parser.parse_args()
+
     skip_txt = args.skip_txt
     skip_imgs = args.skip_imgs
+
     start_page = args.start_page
     end_page = args.end_page
     dest_folder = args.dest_folder
@@ -144,8 +148,8 @@ if __name__ == '__main__':
     images_path = Path(dest_folder, images_folder)
     json_path = Path(dest_folder, args.json_path)
 
-    for book in range(start_page, end_page):
-        url = f'https://tululu.org/l55/{book}/'
+    for page_number in range(start_page, end_page):
+        url = f'https://tululu.org/l55/{page_number}/'
         response = requests.get(url)
         check_for_redirect(response)
         response.raise_for_status()
@@ -157,14 +161,14 @@ if __name__ == '__main__':
         for book in books:
             try:
                 book_id = book['href']
-                basic_url = urljoin(url, book_id)
-                response = requests.get(basic_url)
+                book_url = urljoin(url, book_id)
+                response = requests.get(book_url)
                 check_for_redirect(response)
                 response.raise_for_status()
                 soup = BeautifulSoup(response.text, 'lxml')
 
                 download_book(
-                    soup, basic_url,
+                    soup, book_url,
                     books_path, images_path,
                     skip_imgs, skip_txt,
                     json_path
