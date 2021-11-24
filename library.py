@@ -71,7 +71,7 @@ def download_image(book_url, parsed_book, relative_image_url):
     response = requests.get(basic_image_url)
     response.raise_for_status()
 
-    with open(f'{image_url}', 'wb') as file:
+    with open(image_url, 'wb') as file:
         file.write(response.content)
 
 
@@ -88,7 +88,6 @@ def download_book(soup, book_url, books_path, images_path, args, json_path):
     filename = unquote(image_id)
     book_id, _ = os.path.splitext(image_id)
 
-    # book_description = []
     parsed_book = parse_book_page(
         soup, books_path,
         images_path, filename,
@@ -110,7 +109,7 @@ def get_parser():
     )
     parser.add_argument(
         '--end_page', nargs='?',
-        type=int, default=0,
+        type=int, default=get_last_page(),
         help='С какой по какую страницы скачать'
     )
     parser.add_argument(
@@ -150,8 +149,6 @@ if __name__ == '__main__':
     start_page = args.start_page
     end_page = args.end_page
 
-    if not end_page:
-        end_page = get_last_page()
     for page_number in range(start_page, end_page):
         url = f'https://tululu.org/l55/{page_number}/'
         response = requests.get(url)
