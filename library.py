@@ -151,6 +151,7 @@ if __name__ == '__main__':
     start_page = args.start_page
     end_page = args.end_page
 
+    book_description = []
     for page_number in range(start_page, end_page):
         url = f'https://tululu.org/l55/{page_number}/'
         response = requests.get(url)
@@ -160,7 +161,7 @@ if __name__ == '__main__':
         soup = BeautifulSoup(response.text, 'lxml')
         selector = '.bookimage a'
         books = soup.select(selector)
-        book_description = []
+
         for book in books:
             try:
                 book_id = book['href']
