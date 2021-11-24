@@ -41,7 +41,6 @@ def parse_book_page(soup, books_path, images_path, filename, book_id):
     pathlib.Path(images_path).mkdir(parents=True, exist_ok=True)
     img_scr = os.path.join(images_path, f'{book_id}_{filename}')
     book_path = os.path.join(books_path, f'{book_id}_{title.strip()}.txt')
-
     parsed_book = {
         'title': title.strip(),
         'autor': author.strip(),
@@ -80,14 +79,13 @@ def download_description_book(parsed_book, json_path):
         json.dump(parsed_book, description_book, ensure_ascii=False)
 
 
-def download_book(soup, book_url, books_path, images_path, args, json_path):
+def download_book(soup, book_url, books_path, images_path, args):
     relative_image_url_selector = '.bookimage a img'
     relative_image_url = soup.select_one(relative_image_url_selector)['src']
     parse_image_url = urlsplit(relative_image_url)
     image_id = os.path.split(parse_image_url.path)[-1]
     filename = unquote(image_id)
     book_id, _ = os.path.splitext(image_id)
-
     parsed_book = parse_book_page(
         soup, books_path,
         images_path, filename,
@@ -136,6 +134,10 @@ def get_parser():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        filename='log.txt', filemode='a',
+        level=logging.DEBUG
+    )
     books_folder = 'books'
     images_folder = 'images'
 
@@ -158,7 +160,6 @@ if __name__ == '__main__':
         soup = BeautifulSoup(response.text, 'lxml')
         selector = '.bookimage a'
         books = soup.select(selector)
-
         book_description = []
         for book in books:
             try:
@@ -168,14 +169,14 @@ if __name__ == '__main__':
                 check_for_redirect(response)
                 response.raise_for_status()
                 soup = BeautifulSoup(response.text, 'lxml')
-
                 parsed_book = download_book(
                     soup, book_url,
                     books_path, images_path,
                     args,
-                    json_path
                 )
                 book_description.append(parsed_book)
-                download_description_book(book_description, json_path)
-            except:
-                logging.basicConfig(level=logging.DEBUG)
+
+            except requests.HTTPError:
+                logging.error('Произошла ошибка при скачивании.')
+
+        download_description_book(book_description, json_path)
