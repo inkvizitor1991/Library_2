@@ -179,4 +179,4 @@ if __name__ == '__main__':
             except requests.HTTPError:
                 logging.error('Произошла ошибка при скачивании.')
 
-        download_description_book(book_description, json_path)
+    download_description_book(book_description, json_path)
